@@ -3,6 +3,17 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
+	"math/big"
+	"os"
+	"strconv"
+	"strings"
+	"time"
+
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -10,15 +21,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/joho/godotenv"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
-	"log"
-	"math/big"
-	"os"
-	"strconv"
-	"strings"
-	"time"
 )
 
 var rpcURL string
@@ -26,6 +28,13 @@ var privateKeyHex string
 var gasLimitStr string
 var onboardingABI string
 var mongoURL string
+
+type registryData struct {
+	Message     string    `bson:"message"`
+	FromAddress string    `bson:"fromAddress"`
+	BlockHeight big.Int   `bson:"blockHeight"`
+	Timestamp   time.Time `bson:"timestamp"`
+}
 
 func main() {
 
@@ -169,7 +178,13 @@ func ReadFromTransaction(client *ethclient.Client) {
 				continue
 			}
 			fmt.Printf("Vow: %s\n", vow)
-			err = saveVowToMongoDB(vow)
+			data := registryData{
+				Message:     vow,
+				FromAddress: tx.To().Hex(),
+				BlockHeight: *block.Number(),
+				Timestamp:   time.Now(),
+			}
+			err = saveVowToMongoDB(tx.ChainId().String(), data)
 			if err != nil {
 				log.Fatalf("Failed to save vow to MongoDB: %v", err)
 			}
@@ -194,7 +209,6 @@ func decodeVowData(data []byte) (string, error) {
 	// Extract the substring starting from the character immediately after the first space
 	vow = vow[spaceIndex+1:]
 
-	return vow, nil
 	return vow, nil
 }
 
@@ -226,7 +240,7 @@ func ReadFromLastThreeDays(client *ethclient.Client) error {
 	return nil
 }
 
-func saveVowToMongoDB(vow string) error {
+func saveVowToMongoDB(id string, data registryData) error {
 	// Set up MongoDB connection
 	serverAPI := options.ServerAPI(options.ServerAPIVersion1)
 	clientOptions := options.Client().ApplyURI(mongoURL).SetServerAPIOptions(serverAPI)
@@ -241,7 +255,7 @@ func saveVowToMongoDB(vow string) error {
 	collection := db.Collection("wedding vows")
 
 	// Create a document to insert
-	document := bson.M{"vow": vow}
+	document := bson.M{id: data}
 
 	// Insert document into collection
 	_, err = collection.InsertOne(context.Background(), document)
