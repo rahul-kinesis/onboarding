@@ -6,7 +6,6 @@ import (
 	"log"
 	"math/big"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -31,8 +30,8 @@ var mongoURL string
 
 type registryData struct {
 	Message     string    `bson:"message"`
-	FromAddress string    `bson:"fromAddress"`
-	BlockHeight big.Int   `bson:"blockHeight"`
+	FromAddress string    `bson:"toAddress"`
+	BlockHeight int64     `bson:"blockHeight"`
 	Timestamp   time.Time `bson:"timestamp"`
 }
 
@@ -51,12 +50,12 @@ func main() {
 	initialize()
 
 	// Convert gasLimitStr to uint64
-	_, err = strconv.ParseUint(gasLimitStr, 10, 64)
-	if err != nil {
-		log.Fatalf("Failed to parse gas limit: %v", err)
-	}
-
-	// Connect to the Ethereum node
+	//gasLimit, err := strconv.ParseUint(gasLimitStr, 10, 64)
+	//if err != nil {
+	//	log.Fatalf("Failed to parse gas limit: %v", err)
+	//}
+	//
+	//// Connect to the Ethereum node
 	client, err := ethclient.Dial(rpcURL)
 	if err != nil {
 		log.Fatalf("Failed to connect to the Ethereum client: %v", err)
@@ -107,7 +106,7 @@ func main() {
 	//instance, err := NewMain(address, client)
 	//
 	//// Write to the contract
-	//tx, err := instance.SetMessage(auth, "New vow")
+	//tx, err := instance.SetMessage(auth, "CODERs Live event @ Redmond")
 	//if err != nil {
 	//	log.Fatalf("Failed to write to contract: %v", err)
 	//}
@@ -148,8 +147,8 @@ func ReadFromTransaction(client *ethclient.Client) {
 	var txHash common.Hash
 	var contractAddress common.Address
 
-	txHash = common.HexToHash("0xbb90b230a298ad8e22f4cc58e4c3f65ace32a3ab4e49f7567913c666c62a7e4e")
-	contractAddress = common.HexToAddress("0xDA0ED520C966a65567Eeb140fb654971d6ccffcB")
+	txHash = common.HexToHash("0x10ec9f20d253fff2ae776a626ac4a452711725c532684024b7821a5d8f30bd75")
+	contractAddress = common.HexToAddress("0x80Bc2aF9ab1195146A3d54A1558401087b863203")
 
 	client, err := ethclient.Dial("https://sepolia.infura.io/v3/8cd437ae269f42ed87fddc11d4fd5a01")
 	if err != nil {
@@ -181,7 +180,7 @@ func ReadFromTransaction(client *ethclient.Client) {
 			data := registryData{
 				Message:     vow,
 				FromAddress: tx.To().Hex(),
-				BlockHeight: *block.Number(),
+				BlockHeight: block.Number().Int64(),
 				Timestamp:   time.Now(),
 			}
 			err = saveVowToMongoDB(tx.ChainId().String(), data)
